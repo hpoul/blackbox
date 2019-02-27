@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+
+
+#
+# Simple script to automate creation of "role accounts"/automated users.
+#
+# Usage: blackbox_create_role_account my-build-name@my-ci-host.com
+#
+# See also https://medium.com/@mipselaer/gitlab-ci-blackbox-526c7ad7bec0
+# and obviously https://github.com/StackExchange/blackbox#set-up-automated-users-or-role-accounts
+
+set -e
+source "${0%/*}/_blackbox_common.sh"
+
+fail_if_not_in_repo
+
+ROLE_NAME="$1"
+: "${ROLE_NAME:?ERROR: First argument must be name for role.}" ;
+
+
+tmpdir=/tmp/blackbox_createrole
+
+rm -rf "$tmpdir"
+
+mkdir -p "$tmpdir"
+pushd "$tmpdir"
+gpghomedir="$tmpdir"
+secret_key_target="/var/tmp/SECRET_KEY.txt"
+
+gpg --homedir "$gpghomedir" --batch --passphrase '' --quick-generate-key "$ROLE_NAME" 
+
+# Retrieve fingerprint of generated key, (stolen from https://raymii.org/s/articles/GPG_noninteractive_batch_sign_trust_and_send_gnupg_keys.html)
+fpr=`gpg --homedir /tmp/blackbox_createrole --fingerprint --with-colons "$ROLE_NAME" | awk -F: '/fpr:/ {print $10}' | head -n 1`
+gpg --homedir "$gpghomedir" --batch --passphrase '' --quick-add-key "$fpr" rsa encr
+gpg --homedir "$gpghomedir" -a --export-secret-keys "$ROLE_NAME" > $secret_key_target
+
+popd
+
+${0%/*}/blackbox_addadmin "$ROLE_NAME" "$gpghomedir"
+
+echo
+echo
+echo "Added new admin. Updating all files ..."
+echo
+
+${0%/*}/blackbox_update_all_files
+if hash shred 2>/dev/null ; then
+    find "$tmpdir" -type f -print0 | xargs -0 shred -u
+else
+    rm -rf "$tmpdir"
+fi
+
+echo
+echo "Use the file $secret_key_target on the remote system. and run the following command(s):"
+echo "    gpg -v --import < SECRET_KEY.txt"
+echo
+echo "If you are using a CI which writes it into a secret shell variable, you can use:"
+echo "    gpg -v --import <(echo \$SECRET_KEY)"
+echo
+echo "Afterwards:"
+echo "    blackbox_postdeploy"
+echo
+echo
+echo "Don't forget to delete $secret_key_target using:"
+echo "  shred $secret_key_target"
+echo "once you have copied it."
