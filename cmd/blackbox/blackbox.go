@@ -5,10 +5,17 @@ import (
 	"fmt"
 	"os"
 
+	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 )
 
 var dryRun bool
+
+func init() {
+
+	// Only log the warning severity or above.
+	log.SetLevel(log.TraceLevel)
+}
 
 func main() {
 	app := cli.NewApp()

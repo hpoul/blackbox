@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/sirupsen/logrus"
 	"os"
 
 	"github.com/StackExchange/blackbox/pkg/bbutil"
@@ -22,7 +23,9 @@ func cmdDecrypt(allFiles bool, filenames []string, group string) error {
 	}
 	for i, filename := range fnames {
 		if valid[i] {
-			bbu.DecryptFile(filename, group, true)
+			if err := bbu.DecryptFile(filename, group, true) ; err != nil {
+				logrus.WithError(err).Panicf("Error decrypting file")
+			}
 		} else {
 			fmt.Fprintf(os.Stderr, "SKIPPING: %q\n", filename)
 		}
