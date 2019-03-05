@@ -5,6 +5,7 @@ import (
 	"golang.org/x/crypto/openpgp"
 	"io"
 	"os"
+	"path"
 	"strings"
 )
 
@@ -18,34 +19,6 @@ func (bbu *RepoInfo) PostDeploy(privateKeyFile io.Reader) error {
 	if err != nil {
 		return err
 	}
-	//
-	//
-	//block, err := armor.Decode(privateKeyFile)
-	//if err != nil {
-	//	return err
-	//}
-	//
-	//privateKeyReader := packet.NewReader(block.Body)
-	//privateKeyPacket, err := privateKeyReader.Next()
-	////entity := openpgp.EntityList{}
-	//entity := openpgp.Entity{}
-	//for {
-	//	next, err := privateKeyReader.Next()
-	//	if err != nil {
-	//		return err
-	//	}
-	//	privateKey, ok := next.(*packet.PrivateKey)
-	//	if ok {
-	//		entity.PrivateKey = privateKey
-	//	}
-	//
-	//}
-	//if !ok {
-	//	return errors.New("no private key found")
-	//}
-	//
-	//next, err := privateKeyReader.Next()
-	//log.Infof("next: %v, err: %v", next, err)
 
 	for i, filename := range fnames {
 		if valid[i] {
@@ -58,7 +31,8 @@ func (bbu *RepoInfo) PostDeploy(privateKeyFile io.Reader) error {
 }
 
 func (bbu *RepoInfo) decryptFileWith(filename string, key *openpgp.EntityList) error {
-	file, err := os.Open(strings.Join([]string{bbu.RepoBaseDir, "/", filename, ".gpg"}, ""))
+	origPath := path.Join(bbu.RepoBaseDir, filename)
+	file, err := os.Open(strings.Join([]string{origPath, ".gpg"}, ""))
 	if err != nil {
 		return err
 	}
@@ -67,8 +41,12 @@ func (bbu *RepoInfo) decryptFileWith(filename string, key *openpgp.EntityList) e
 		return err
 	}
 
-	n, err := io.Copy(os.Stdout, md.UnverifiedBody)
-	log.Infof("Read %d bytes", n)
+	writer, err := os.Create(origPath)
+	if err != nil {
+		return err
+	}
+	n, err := io.Copy(writer, md.UnverifiedBody)
+	log.Infof("Decrypted %d bytes into %s", n, origPath)
 
 	//compressed, err := gzip.NewReader(md.UnverifiedBody)
 	//if err != nil {
