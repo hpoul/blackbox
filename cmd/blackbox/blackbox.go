@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"github.com/StackExchange/blackbox/pkg/bbutil"
 	"os"
 
 	log "github.com/sirupsen/logrus"
@@ -67,6 +68,26 @@ func main() {
 					return RunBash("blackbox_decrypt_all_files", c.Args().First())
 				}
 				return RunBash("blackbox_edit_start", c.Args().First())
+			},
+		},
+		{
+			Name:    "cipostdeploy",
+			Aliases: []string{"de", "start"},
+			Usage:   "Decrypts all files with a given private key.",
+			Flags: []cli.Flag{
+			},
+			Action: func(c *cli.Context) error {
+				bbu, err := bbutil.New()
+				if err != nil {
+					return err
+				}
+				f, err := os.Open(c.Args().First())
+				if err != nil {
+					return err
+				}
+				defer f.Close()
+				return bbu.PostDeploy(f)
+				//return cmdCiPostdeploy(c.Bool("all"), c.Args(), c.String("set-group"))
 			},
 		},
 		{

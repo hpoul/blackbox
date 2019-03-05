@@ -1,81 +1,89 @@
 package bbutil
 
 import (
-	"github.com/proglottis/gpgme"
 	log "github.com/sirupsen/logrus"
+	"golang.org/x/crypto/openpgp"
 	"io"
 	"os"
-	"os/user"
-	"path/filepath"
-	"strconv"
 	"strings"
 )
 
+func (bbu *RepoInfo) PostDeploy(privateKeyFile io.Reader) error {
+	fnames, valid, err := bbu.FileIterator(true, nil)
+	if err != nil {
+		return err
+	}
+
+	el, err := openpgp.ReadArmoredKeyRing(privateKeyFile)
+	if err != nil {
+		return err
+	}
+	//
+	//
+	//block, err := armor.Decode(privateKeyFile)
+	//if err != nil {
+	//	return err
+	//}
+	//
+	//privateKeyReader := packet.NewReader(block.Body)
+	//privateKeyPacket, err := privateKeyReader.Next()
+	////entity := openpgp.EntityList{}
+	//entity := openpgp.Entity{}
+	//for {
+	//	next, err := privateKeyReader.Next()
+	//	if err != nil {
+	//		return err
+	//	}
+	//	privateKey, ok := next.(*packet.PrivateKey)
+	//	if ok {
+	//		entity.PrivateKey = privateKey
+	//	}
+	//
+	//}
+	//if !ok {
+	//	return errors.New("no private key found")
+	//}
+	//
+	//next, err := privateKeyReader.Next()
+	//log.Infof("next: %v, err: %v", next, err)
+
+	for i, filename := range fnames {
+		if valid[i] {
+			if err := bbu.decryptFileWith(filename, &el) ; err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func (bbu *RepoInfo) decryptFileWith(filename string, key *openpgp.EntityList) error {
+	file, err := os.Open(strings.Join([]string{bbu.RepoBaseDir, "/", filename, ".gpg"}, ""))
+	if err != nil {
+		return err
+	}
+	md, err := openpgp.ReadMessage(file, key, nil, nil)
+	if err != nil {
+		return err
+	}
+
+	n, err := io.Copy(os.Stdout, md.UnverifiedBody)
+	log.Infof("Read %d bytes", n)
+
+	//compressed, err := gzip.NewReader(md.UnverifiedBody)
+	//if err != nil {
+	//	return err
+	//}
+	//defer compressed.Close()
+	//
+	//n, err := io.Copy(os.Stdout, compressed)
+	//log.Infof("Decrypted %d bytes", n)
+
+	return nil
+}
+
 // DecryptFile decrypts a single file.
 func (bbu *RepoInfo) DecryptFile(filename, group string, overwrite bool) error {
-
-	origFilepath := filepath.Join(bbu.RepoBaseDir, filename)
-	gpgFilepath := strings.Join([]string{filepath.Join(bbu.RepoBaseDir, filename), ".gpg"}, "")
-
-
-	gpgFile, err := os.Open(gpgFilepath)
-	if err != nil {
-		log.Warnf("Error while opening file %v: %v", gpgFilepath, err)
-		return err
-	}
-	fileInfo, err := gpgFile.Stat()
-
-	decrypted, err := gpgme.Decrypt(gpgFile)
-	if err != nil {
-		log.Warnf("Error while decrypting file: %v", err)
-		return err
-	}
-
-	flag := os.O_CREATE|os.O_WRONLY
-	if overwrite {
-		flag |= os.O_TRUNC
-
-	} else {
-		flag |= os.O_EXCL
-	}
-
-
-	outFile, err := os.OpenFile(origFilepath, flag, fileInfo.Mode())
-	if err != nil {
-		log.WithError(err).Warn("Error creating output file.")
-		return err
-	}
-
-	if _, err := io.Copy(outFile, decrypted) ; err != nil {
-		log.WithError(err).Warn("Error writing to output file.")
-		return err
-	}
-	if err = gpgFile.Close() ; err != nil {
-		return err
-	}
-
-	if err = outFile.Close() ; err != nil {
-		return err
-	}
-
-	if err = decrypted.Close() ; err != nil {
-		return err
-	}
-
-	if group != "" {
-		group, err := user.LookupGroup(group)
-		if err != nil {
-			return err
-		}
-		gid, err := strconv.ParseInt(group.Gid, 10, 64)
-		if err != nil {
-			return err
-		}
-
-		if err = os.Chown(origFilepath, -1, int(gid)) ; err != nil {
-			return err
-		}
-	}
 
 
 	log.Infof("Decrypted %q", filename)
