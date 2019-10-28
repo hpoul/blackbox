@@ -1,9 +1,11 @@
 package main
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
 	"github.com/StackExchange/blackbox/pkg/bbutil"
+	"io"
 	"os"
 
 	log "github.com/sirupsen/logrus"
@@ -81,12 +83,20 @@ func main() {
 				if err != nil {
 					return err
 				}
-				f, err := os.Open(c.Args().First())
-				if err != nil {
-					return err
+				filename := c.Args().First()
+				var keyReader  io.Reader
+				if filename == "-" || filename == "" {
+					// If no filename is given, read from stdin.
+					keyReader = bufio.NewReader(os.Stdin)
+				} else {
+					f, err := os.Open(c.Args().First())
+					if err != nil {
+						return err
+					}
+					defer f.Close()
+					keyReader = f
 				}
-				defer f.Close()
-				return bbu.PostDeploy(f)
+				return bbu.PostDeploy(keyReader)
 				//return cmdCiPostdeploy(c.Bool("all"), c.Args(), c.String("set-group"))
 			},
 		},
