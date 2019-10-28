@@ -1,3 +1,33 @@
+Note about [hpoul/blackbox](https://github.com/hpoul/blackbox) fork:
+
+This fork/branch contains a `cipostdeploy` command implemented in golang for easy
+usage on a CI server without any external dependencies.
+
+To build with golang:
+
+```bash
+go build ./cmd/blackbox
+```
+
+and to build for different platforms:
+
+```bash
+GOOS=linux GOARCH=amd64 go build -o blackbox.go.linux.amd64 ./cmd/blackbox
+GOOS=linux GOARCH=386 go build -o blackbox.go.linux.386 ./cmd/blackbox
+GOOS=darwin GOARCH=amd64 go build -o blackbox.go.macos ./cmd/blackbox
+```
+
+Usage:
+
+```bash
+# Give file name of private key as first parameter
+blackbox.go.linux.amd64 cipostdeploy CI_PRIVATE_KEY.txt
+
+# Or pass the private key with stdin (with first parameter omitted or `-`)
+private_key=$(cat PRIVATE_KEY.txt)
+echo "$private_key" | blackbox.go.linux.amd64 cipostdeploy
+```
+
 BlackBox [![CircleCI](https://circleci.com/gh/StackExchange/blackbox.svg?style=shield)](https://circleci.com/gh/StackExchange/workflows/blackbox)
 ========
 
