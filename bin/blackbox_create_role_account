@@ -27,7 +27,7 @@ pushd "$tmpdir"
 gpghomedir="$tmpdir"
 secret_key_target="/var/tmp/SECRET_KEY.txt"
 
-gpg --homedir "$gpghomedir" --batch --passphrase '' --quick-generate-key "$ROLE_NAME" 
+gpg --homedir "$gpghomedir" --batch --passphrase '' --quick-generate-key "$ROLE_NAME" rsa4096
 
 # Retrieve fingerprint of generated key, (stolen from https://raymii.org/s/articles/GPG_noninteractive_batch_sign_trust_and_send_gnupg_keys.html)
 fpr=`gpg --homedir /tmp/blackbox_createrole --fingerprint --with-colons "$ROLE_NAME" | awk -F: '/fpr:/ {print $10}' | head -n 1`
